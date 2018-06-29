@@ -21,33 +21,31 @@ layer_3_nodes = 50
 
 # Define the layers of the neural network
 
+
+def neural_network(input, input_nodes, nodes, layer_num, act_func=tf.nn.relu):
+    with tf.variable_scope(layer_num):
+        weights = tf.get_variable(name="weight", shape=(input_nodes, nodes),
+                                  initializer=tf.contrib.layers.xavier_initializer())
+        bias = tf.get_variable(name="bias", shape=([nodes]))
+        layer_output = act_func(tf.matmul(input, weights) + bias)
+    return layer_output
+
+
 # input layer
 with tf.variable_scope('input'):
     x = tf.placeholder(dtype=tf.float32, shape=(None, number_of_inputs))
 
-with tf.variable_scope('layer_1'):
-    weights = tf.get_variable(name="weight_1", shape=(number_of_inputs, layer_1_nodes), 
-                              initializer=tf.contrib.layers.xavier_initializer())
-    bias = tf.get_variable(name='bias1', shape=([layer_1_nodes]), initializer=tf.zeros_initializer())
-    layer_1_output = tf.nn.relu(tf.matmul(x,weights) + bias)
+act = tf.nn.relu
 
-with tf.variable_scope('layer_2'):
-    weights = tf.get_variable(name="weight_2", shape=(layer_1_nodes, layer_2_nodes), 
-                              initializer=tf.contrib.layers.xavier_initializer())
-    bias = tf.get_variable(name='bias2', shape=([layer_2_nodes]), initializer=tf.zeros_initializer())
-    layer_2_output = tf.nn.relu(tf.matmul(layer_1_output,weights) + bias)
+hidden_layer_1 = neural_network(x, number_of_inputs, layer_1_nodes, 'layer_1', act_func=act)
+hidden_layer_2 = neural_network(hidden_layer_1, layer_1_nodes, layer_2_nodes, 'layer_2', act_func=act)
+hidden_layer_3 = neural_network(hidden_layer_2, layer_2_nodes, layer_3_nodes, 'layer_3', act_func=act)
 
-with tf.variable_scope('layer_3'):
-    weights = tf.get_variable(name="weight_3", shape=(layer_2_nodes, layer_3_nodes), 
-                              initializer=tf.contrib.layers.xavier_initializer())
-    bias = tf.get_variable(name='bias2', shape=([layer_3_nodes]), initializer=tf.zeros_initializer())
-    layer_3_output = tf.nn.relu(tf.matmul(layer_2_output,weights) + bias)
 
 with tf.variable_scope('output'):
-    weights = tf.get_variable(name="weight_4", shape=(layer_3_nodes, number_of_outputs), 
+    weights = tf.get_variable(name="weight_4", shape=(layer_3_nodes, number_of_outputs),
                               initializer=tf.contrib.layers.xavier_initializer())
-    bias = tf.get_variable(name='bias4', shape=([number_of_outputs]), initializer=tf.zeros_initializer())
-    prediction = tf.nn.relu(tf.matmul(layer_3_output,weights) + bias)
+    prediction = tf.nn.relu(tf.matmul(hidden_layer_3, weights))
 
 with tf.variable_scope('cost'):
     Y = tf.placeholder(dtype=tf.float32, shape=(None,1))
