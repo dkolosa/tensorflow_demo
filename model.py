@@ -18,6 +18,7 @@ number_of_outputs = 1
 layer_1_nodes = 50
 layer_2_nodes = 100
 layer_3_nodes = 50
+rnn_nodes = 100
 
 # Define the layers of the neural network
 
@@ -31,25 +32,47 @@ def neural_network(input, input_nodes, nodes, layer_num, act_func=tf.nn.relu):
     return layer_output
 
 
+def rnn_layer(input, input_nodes, nodes, name):
+    with tf.variable_scope(name):
+        cell = tf.nn.rnn_cell.BasicRNNCell(nodes)
+
+        weights = tf.get_variable(name="weight", shape=(nodes, input_nodes),
+                                  initializer=tf.contrib.layers.xavier_initializer())
+        bias = tf.get_variable(name="bias", shape=([input_nodes]))
+        input = tf.expand_dims(input, axis=2)
+        # input = tf.split(input, 5, 1)
+        states, _ = tf.nn.dynamic_rnn(cell, input, dtype=tf.float32)
+
+        output = tf.matmul(states[-1], weights) + bias
+    return output
+
+
 # input layer
 with tf.variable_scope('input'):
     x = tf.placeholder(dtype=tf.float32, shape=(None, number_of_inputs))
 
 act = tf.nn.relu
 
-hidden_layer_1 = neural_network(x, number_of_inputs, layer_1_nodes, 'layer_1', act_func=act)
-hidden_layer_2 = neural_network(hidden_layer_1, layer_1_nodes, layer_2_nodes, 'layer_2', act_func=act)
-hidden_layer_3 = neural_network(hidden_layer_2, layer_2_nodes, layer_3_nodes, 'layer_3', act_func=act)
+# hidden_layer_1 = neural_network(x, number_of_inputs, layer_1_nodes, 'layer_1', act_func=act)
+# hidden_layer_2 = neural_network(hidden_layer_1, layer_1_nodes, layer_2_nodes, 'layer_2', act_func=act)
+# dropped = tf.nn.dropout(hidden_layer_2, 0.3)
 
+# hidden_layer_3 = neural_network(hidden_layer_2, layer_2_nodes, layer_3_nodes, 'layer_3', act_func=act)
 
-with tf.variable_scope('output'):
-    weights = tf.get_variable(name="weight_4", shape=(layer_3_nodes, number_of_outputs),
-                              initializer=tf.contrib.layers.xavier_initializer())
-    prediction = tf.nn.relu(tf.matmul(hidden_layer_3, weights))
+hidden_rnn_1 = rnn_layer(x, number_of_inputs, rnn_nodes, name='RNN-layer1')
+hidden_rnn_2 = rnn_layer(hidden_rnn_1, rnn_nodes, 100, name='RNN-layer2')
+
+hidden_rnn_3 = rnn_layer(hidden_rnn_2, 100, 100, name='RNN-layer3')[-1]
+
+# with tf.variable_scope('output'):
+#     weights = tf.get_variable(name="weight_4", shape=(layer_3_nodes, number_of_outputs),
+#                               initializer=tf.contrib.layers.xavier_initializer())
+#     bias = tf.get_variable(name="bias", shape=([number_of_outputs]))
+#     prediction = tf.nn.relu(tf.matmul(hidden_layer_3, weights) + bias)
 
 with tf.variable_scope('cost'):
     Y = tf.placeholder(dtype=tf.float32, shape=(None,1))
-    cost = tf.reduce_mean(tf.squared_difference(prediction,Y))
+    cost = tf.reduce_mean(tf.squared_difference(hidden_rnn_3,Y))
 
 with tf.variable_scope('train'):
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
